@@ -29,10 +29,7 @@ class DeepSeekClient:
                 logger.warning("Language detection failed, defaulting to Portuguese")
 
             # Simple system prompt focused on task
-            if lang == 'pt':
-                system_prompt = "Responda naturalmente em português, de forma direta e amigável."
-            else:
-                system_prompt = "Respond naturally in English, in a direct and friendly way."
+            system_prompt = "Responda em português de forma natural" if lang == 'pt' else "Respond naturally in English"
 
             messages = [
                 {"role": "system", "content": system_prompt},

@@ -31,10 +31,7 @@ class EdenAIClient:
             endpoint = f"{self.base_url}/text/generation"
 
             # Simple system prompt focused on task
-            if lang == 'pt':
-                system_prompt = "Responda naturalmente em português, de forma direta e amigável."
-            else:
-                system_prompt = "Respond naturally in English, in a direct and friendly way."
+            system_prompt = "Responda em português de forma natural" if lang == 'pt' else "Respond naturally in English"
 
             if context:
                 context_msg = "Contexto: " if lang == 'pt' else "Context: "
