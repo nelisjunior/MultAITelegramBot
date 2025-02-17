@@ -1,75 +1,56 @@
-import asyncio
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from telegram import Update
 import logging
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
-from config import TELEGRAM_TOKEN, WELCOME_MESSAGE, HELP_MESSAGE, PROCESSING_MESSAGE, ERROR_MESSAGE
+from config import TELEGRAM_TOKEN, WELCOME_MESSAGE, HELP_MESSAGE, ERROR_MESSAGE
 from deepseek_client import DeepSeekClient
-from utils import error_handler, send_typing_action
 
 # Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 # Initialize DeepSeek client
 deepseek_client = DeepSeekClient()
 
-@error_handler
-async def start_command(update: Update, context: CallbackContext) -> None:
-    """Handle the /start command"""
+async def start(update: Update, context: CallbackContext) -> None:
+    """Send a message when the command /start is issued."""
     await update.message.reply_text(WELCOME_MESSAGE)
 
-@error_handler
 async def help_command(update: Update, context: CallbackContext) -> None:
-    """Handle the /help command"""
+    """Send a message when the command /help is issued."""
     await update.message.reply_text(HELP_MESSAGE)
 
-@error_handler
 async def handle_message(update: Update, context: CallbackContext) -> None:
-    """Handle incoming messages"""
-    if not update.message or not update.message.text:
-        await update.message.reply_text("Please send a text message.")
-        return
-
-    # Send "typing" action
-    await send_typing_action(update, context)
-
-    # Send processing message
-    processing_message = await update.message.reply_text(PROCESSING_MESSAGE)
-
+    """Handle all incoming messages."""
     try:
         # Get response from DeepSeek
         response = await deepseek_client.get_response(update.message.text)
-
-        # Delete processing message
-        await processing_message.delete()
-
-        # Send response
         await update.message.reply_text(response)
-
-    except TimeoutError:
-        await processing_message.edit_text("Request timed out. Please try again.")
     except Exception as e:
         logger.error(f"Error processing message: {str(e)}")
-        await processing_message.edit_text(ERROR_MESSAGE)
+        await update.message.reply_text(ERROR_MESSAGE)
 
-async def main() -> None:
-    """Start the bot"""
+def main() -> None:
+    """Start the bot."""
     try:
-        # Create application
+        # Create the Application
         application = Application.builder().token(TELEGRAM_TOKEN).build()
 
         # Add handlers
-        application.add_handler(CommandHandler("start", start_command))
+        application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-        # Start the bot
+        # Start the Bot
         logger.info("Starting bot...")
-        await application.run_polling(allowed_updates=Update.ALL_TYPES)
+        application.run_polling()
 
     except Exception as e:
         logger.error(f"Error starting bot: {str(e)}")
         raise
 
-if __name__ == "__main__":
-    asyncio.run(main())
+if __name__ == '__main__':
+    main()
