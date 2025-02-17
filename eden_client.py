@@ -33,19 +33,19 @@ class EdenAIClient:
             # Adjust system prompt based on language
             if lang == 'pt':
                 system_prompt = """
-                Você é um assistente AI que ajuda os usuários a gerenciar seu espaço de trabalho no Notion.
-                Você pode ajudar a criar páginas, buscar conteúdo e organizar informações.
-                Quando os usuários mencionarem bancos de dados ou páginas, tente entender a intenção
-                deles e sugerir ações apropriadas.
-                Responda sempre em português de forma natural e amigável.
+                Ajudo a gerenciar seu espaço de trabalho no Notion.
+                Posso ajudar a criar páginas, buscar conteúdo e organizar informações.
+                Quando você mencionar bancos de dados ou páginas, vou entender sua intenção
+                e sugerir ações apropriadas.
+                Responderei sempre em português de forma natural e amigável.
                 """
             else:
                 system_prompt = """
-                You are an AI assistant that helps users manage their Notion workspace.
-                You can help create pages, search for content, and organize information.
-                When users mention databases or pages, try to understand their intent
+                I help manage your Notion workspace.
+                I can help create pages, search for content, and organize information.
+                When you mention databases or pages, I'll understand your intent
                 and suggest appropriate actions.
-                Always respond naturally and in a friendly manner.
+                I'll always respond naturally and in a friendly manner.
                 """
 
             prompt = f"{system_prompt}\n\nContext: {str(context)}\n\nUser: {message}" if context else f"{system_prompt}\n\nUser: {message}"
