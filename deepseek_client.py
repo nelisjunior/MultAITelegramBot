@@ -20,12 +20,12 @@ class DeepSeekClient:
         Get response from DeepSeek API asynchronously
         """
         try:
-            # Detect message language
+            # Default to Portuguese and attempt to detect language
+            lang = 'pt'
             try:
                 lang = detect(message)
                 logger.info(f"Detected language: {lang}")
             except:
-                lang = 'pt'  # Default to Portuguese if detection fails
                 logger.warning("Language detection failed, defaulting to Portuguese")
 
             # Simple system prompt focused on task

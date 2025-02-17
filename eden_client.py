@@ -20,12 +20,12 @@ class EdenAIClient:
         Get AI response using Eden AI's Text Generation API
         """
         try:
-            # Detect message language
+            # Default to Portuguese and attempt to detect language
+            lang = 'pt'
             try:
                 lang = detect(message)
                 logger.info(f"Detected language: {lang}")
             except:
-                lang = 'pt'  # Default to Portuguese if detection fails
                 logger.warning("Language detection failed, defaulting to Portuguese")
 
             endpoint = f"{self.base_url}/text/generation"
@@ -78,12 +78,12 @@ class EdenAIClient:
         Analyze sentiment of a text using Eden AI
         """
         try:
-            # Detect text language
+            # Default to Portuguese and attempt to detect language
+            lang = 'pt'
             try:
                 lang = detect(text)
                 logger.info(f"Detected language for sentiment analysis: {lang}")
             except:
-                lang = 'pt'  # Default to Portuguese
                 logger.warning("Language detection failed, defaulting to Portuguese")
 
             endpoint = f"{self.base_url}/text/sentiment_analysis"
