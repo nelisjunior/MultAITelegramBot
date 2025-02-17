@@ -9,7 +9,6 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 NOTION_TOKEN = os.getenv('NOTION_TOKEN')
-NOTION_DATABASE_ID = os.getenv('NOTION_DATABASE_ID')
 EDEN_AI_API_KEY = os.getenv('EDEN_AI_API_KEY')
 
 # Configure logging
