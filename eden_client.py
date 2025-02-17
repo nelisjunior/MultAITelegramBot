@@ -32,11 +32,15 @@ class EdenAIClient:
 
             # Simple system prompt focused on task
             if lang == 'pt':
-                system_prompt = "Gerencio seu espaço Notion. Respondo de forma direta e natural em português."
+                system_prompt = "Responda naturalmente em português, de forma direta e amigável."
             else:
-                system_prompt = "I manage your Notion workspace. I respond directly and naturally in English."
+                system_prompt = "Respond naturally in English, in a direct and friendly way."
 
-            prompt = f"{system_prompt}\n\nContext: {str(context)}\n\nUser: {message}" if context else f"{system_prompt}\n\nUser: {message}"
+            if context:
+                context_msg = "Contexto: " if lang == 'pt' else "Context: "
+                system_prompt = f"{system_prompt}\n{context_msg}{str(context)}"
+
+            prompt = system_prompt + "\nUser: " + message
 
             payload = {
                 "providers": "openai",

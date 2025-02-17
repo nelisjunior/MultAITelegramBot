@@ -30,16 +30,16 @@ class DeepSeekClient:
 
             # Simple system prompt focused on task
             if lang == 'pt':
-                system_prompt = "Gerencio seu espaço Notion. Respondo de forma direta e natural em português."
+                system_prompt = "Responda naturalmente em português, de forma direta e amigável."
             else:
-                system_prompt = "I manage your Notion workspace. I respond directly and naturally in English."
+                system_prompt = "Respond naturally in English, in a direct and friendly way."
 
             messages = [
                 {"role": "system", "content": system_prompt},
             ]
 
             if context:
-                context_msg = "Contexto atual: " if lang == 'pt' else "Current context: "
+                context_msg = "Contexto: " if lang == 'pt' else "Context: "
                 messages.append({
                     "role": "system",
                     "content": f"{context_msg}{str(context)}"
