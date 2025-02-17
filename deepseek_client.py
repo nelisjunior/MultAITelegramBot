@@ -14,14 +14,33 @@ class DeepSeekClient:
             "Content-Type": "application/json"
         }
 
-    async def get_response(self, message: str) -> str:
+    async def get_response(self, message: str, context: dict = None) -> str:
         """
         Get response from DeepSeek API asynchronously
         """
         try:
+            system_prompt = """
+            You are an AI assistant that helps users manage their Notion workspace.
+            You can help create pages, search for content, and organize information.
+            When users mention databases or pages, try to understand their intent
+            and suggest appropriate actions.
+            """
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+            ]
+
+            if context:
+                messages.append({
+                    "role": "system",
+                    "content": f"Current context: {str(context)}"
+                })
+
+            messages.append({"role": "user", "content": message})
+
             payload = {
                 "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": message}],
+                "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 1000
             }
