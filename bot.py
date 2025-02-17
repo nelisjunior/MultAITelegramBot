@@ -70,8 +70,11 @@ async def list_databases(update: Update, context: CallbackContext) -> None:
         databases = await notion_client.list_databases()
         if not databases:
             await update.message.reply_text(
-                "📚 Nenhum banco de dados encontrado no seu workspace Notion.\n"
-                "Verifique se você tem permissão de acesso aos bancos de dados."
+                "📚 Nenhum banco de dados encontrado no seu workspace Notion.\n\n"
+                "Verifique se:\n"
+                "1. O token de integração tem permissões corretas\n"
+                "2. A integração foi adicionada aos bancos de dados\n"
+                "3. O ID do banco de dados padrão está correto (se configurado)"
             )
             return
 
@@ -88,15 +91,18 @@ async def list_databases(update: Update, context: CallbackContext) -> None:
         error_msg = str(e)
         logger.error(f"Erro ao listar bancos de dados: {error_msg}")
 
-        if "Token" in error_msg:
+        if "Token" in error_msg or "autenticação" in error_msg.lower():
             await update.message.reply_text(
-                "❌ Erro de autenticação no Notion.\n"
-                "Por favor, verifique se o token de integração está correto."
+                "❌ Erro de autenticação no Notion.\n\n"
+                "Por favor, verifique:\n"
+                "1. Se o token de integração está correto\n"
+                "2. Se a integração tem permissões necessárias\n"
+                "3. Se a integração não foi removida do workspace"
             )
         else:
             await update.message.reply_text(
                 "❌ Erro ao listar bancos de dados do Notion.\n"
-                "Por favor, tente novamente mais tarde."
+                "Por favor, verifique os logs para mais detalhes."
             )
 
 async def use_dummy_mode(update: Update, context: CallbackContext) -> None:

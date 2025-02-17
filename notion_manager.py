@@ -1,4 +1,5 @@
 import logging
+import re
 from notion_client import Client, APIResponseError
 from config import NOTION_TOKEN, NOTION_DATABASE_ID
 
@@ -12,10 +13,61 @@ class NotionManager:
 
         logger.info("Inicializando NotionManager")
         self.client = Client(auth=NOTION_TOKEN)
-        self.default_database_id = NOTION_DATABASE_ID
+        self.default_database_id = self._extract_database_id(NOTION_DATABASE_ID)
 
-        if not self.default_database_id:
-            logger.warning("NOTION_DATABASE_ID não configurado, algumas funcionalidades podem estar limitadas")
+        # Verifica se a integração tem acesso básico
+        try:
+            user = self.client.users.me()
+            integration_id = user.get('bot', {}).get('id')
+            logger.info(f"Conexão com Notion estabelecida com sucesso. Integration ID: {integration_id}")
+
+            # Verificar permissões da integração
+            if not integration_id:
+                logger.error("Token fornecido não é de uma integração válida")
+                raise ValueError("Token inválido: não é uma integração")
+
+        except APIResponseError as e:
+            logger.error(f"Erro ao verificar acesso ao Notion: {str(e)}")
+            raise ValueError("Erro de autenticação com o Notion")
+
+    def _extract_database_id(self, database_url: str) -> str:
+        """
+        Extrai o ID do banco de dados de uma URL do Notion
+        """
+        if not database_url:
+            logger.error("URL do banco de dados não fornecida")
+            return None
+
+        # Se já é um UUID válido, retorna como está
+        uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        if re.match(uuid_pattern, database_url):
+            logger.info(f"ID já está no formato UUID: {database_url}")
+            return database_url
+
+        # Tenta extrair o ID do final da URL
+        try:
+            # Remove qualquer trailing slash
+            database_url = database_url.rstrip('/')
+
+            # Extrai o ID do final da URL, seja UUID ou formato sem hífen
+            id_pattern = r'(?:[a-zA-Z0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$'
+            match = re.search(id_pattern, database_url)
+
+            if match:
+                id_str = match.group(0)
+                # Remove hífens se existirem
+                id_str = id_str.replace('-', '')
+                # Formata como UUID
+                formatted_id = f"{id_str[:8]}-{id_str[8:12]}-{id_str[12:16]}-{id_str[16:20]}-{id_str[20:]}"
+                logger.info(f"ID extraído e formatado: {formatted_id}")
+                return formatted_id
+            else:
+                logger.error(f"Não foi possível extrair ID válido da URL: {database_url}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Erro ao processar ID do banco: {str(e)}")
+            return None
 
     async def list_databases(self) -> list:
         """
@@ -23,25 +75,65 @@ class NotionManager:
         """
         try:
             logger.info("Buscando lista de bancos de dados do Notion")
-            results = self.client.search(
-                filter={
-                    "property": "object",
-                    "value": "database"
-                }
-            ).get("results", [])
 
-            if not results:
-                logger.info("Nenhum banco de dados encontrado")
-                return []
+            # Primeiro tenta buscar usando o database_id padrão
+            if self.default_database_id:
+                try:
+                    logger.info(f"Tentando acessar banco de dados padrão: {self.default_database_id}")
+                    database = self.client.databases.retrieve(database_id=self.default_database_id)
+                    logger.info(f"Banco de dados padrão encontrado: {self.default_database_id}")
+                    return [{
+                        "id": database["id"],
+                        "title": database["title"][0]["plain_text"] if database.get("title") else "Sem título",
+                        "description": "Banco de dados padrão"
+                    }]
+                except APIResponseError as e:
+                    logger.warning(
+                        f"Não foi possível acessar o banco padrão: {str(e)}\n"
+                        f"Status: {getattr(e, 'status', 'N/A')}\n"
+                        f"Code: {getattr(e, 'code', 'N/A')}\n"
+                        f"Headers: {getattr(e, 'headers', {})}"
+                    )
 
-            databases = [{
-                "id": db["id"],
-                "title": db["title"][0]["plain_text"] if db.get("title") else "Sem título",
-                "description": db.get("description", "Sem descrição")
-            } for db in results]
+            # Se não encontrou o banco padrão ou ele não está configurado,
+            # busca todos os bancos acessíveis
+            logger.info("Buscando todos os bancos de dados acessíveis")
 
-            logger.info(f"Encontrados {len(databases)} bancos de dados")
-            return databases
+            try:
+                response = self.client.search(
+                    query="",
+                    filter={
+                        "value": "database",
+                        "property": "object"
+                    },
+                    page_size=50
+                )
+
+                logger.info(f"Resposta da busca: {response.get('object')} - Total: {len(response.get('results', []))}")
+
+                results = response.get("results", [])
+                if not results:
+                    logger.info("Nenhum banco de dados encontrado na busca")
+                    return []
+
+                databases = [{
+                    "id": db["id"],
+                    "title": db["title"][0]["plain_text"] if db.get("title") else "Sem título",
+                    "description": db.get("description", "Sem descrição"),
+                    "url": db.get("url", "")
+                } for db in results]
+
+                logger.info(f"Encontrados {len(databases)} bancos de dados")
+                return databases
+
+            except APIResponseError as e:
+                logger.error(
+                    f"Erro na busca de bancos de dados: {str(e)}\n"
+                    f"Status: {getattr(e, 'status', 'N/A')}\n"
+                    f"Code: {getattr(e, 'code', 'N/A')}\n"
+                    f"Headers: {getattr(e, 'headers', {})}"
+                )
+                raise
 
         except APIResponseError as e:
             error_msg = f"Erro na API do Notion ao listar bancos: {str(e)}"
@@ -180,7 +272,6 @@ class NotionManager:
             error_msg = f"Error getting page content: {str(e)}"
             logger.error(error_msg)
             raise Exception("Erro ao obter conteúdo da página")
-
 
     async def get_database_schema(self, database_id: str = None) -> dict:
         """
