@@ -30,23 +30,11 @@ class EdenAIClient:
 
             endpoint = f"{self.base_url}/text/generation"
 
-            # Adjust system prompt based on language
+            # Simple system prompt focused on task
             if lang == 'pt':
-                system_prompt = """
-                Ajudo a gerenciar seu espaço de trabalho no Notion.
-                Posso ajudar a criar páginas, buscar conteúdo e organizar informações.
-                Quando você mencionar bancos de dados ou páginas, vou entender sua intenção
-                e sugerir ações apropriadas.
-                Responderei sempre em português de forma natural e amigável.
-                """
+                system_prompt = "Gerencio seu espaço Notion. Respondo de forma direta e natural em português."
             else:
-                system_prompt = """
-                I help manage your Notion workspace.
-                I can help create pages, search for content, and organize information.
-                When you mention databases or pages, I'll understand your intent
-                and suggest appropriate actions.
-                I'll always respond naturally and in a friendly manner.
-                """
+                system_prompt = "I manage your Notion workspace. I respond directly and naturally in English."
 
             prompt = f"{system_prompt}\n\nContext: {str(context)}\n\nUser: {message}" if context else f"{system_prompt}\n\nUser: {message}"
 
@@ -69,7 +57,7 @@ class EdenAIClient:
                     result = await response.json()
 
                     if result.get("openai") and result["openai"].get("generated_text"):
-                        return result["openai"]["generated_text"]
+                        return result["openai"]["generated_text"].strip()
 
                     error_msg = "Sem resposta válida dos provedores" if lang == 'pt' else "No valid response from providers"
                     raise Exception(error_msg)

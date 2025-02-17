@@ -28,23 +28,11 @@ class DeepSeekClient:
                 lang = 'pt'  # Default to Portuguese if detection fails
                 logger.warning("Language detection failed, defaulting to Portuguese")
 
-            # Adjust system prompt based on language
+            # Simple system prompt focused on task
             if lang == 'pt':
-                system_prompt = """
-                Ajudo a gerenciar seu espaço de trabalho no Notion.
-                Posso ajudar a criar páginas, buscar conteúdo e organizar informações.
-                Quando você mencionar bancos de dados ou páginas, vou entender sua intenção
-                e sugerir ações apropriadas.
-                Responderei sempre em português de forma natural e amigável.
-                """
+                system_prompt = "Gerencio seu espaço Notion. Respondo de forma direta e natural em português."
             else:
-                system_prompt = """
-                I help manage your Notion workspace.
-                I can help create pages, search for content, and organize information.
-                When you mention databases or pages, I'll understand your intent
-                and suggest appropriate actions.
-                I'll always respond naturally and in a friendly manner.
-                """
+                system_prompt = "I manage your Notion workspace. I respond directly and naturally in English."
 
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -76,7 +64,7 @@ class DeepSeekClient:
                     response.raise_for_status()
                     result = await response.json()
 
-                    return result['choices'][0]['message']['content']
+                    return result['choices'][0]['message']['content'].strip()
 
         except asyncio.TimeoutError:
             error_msg = "Tempo limite excedido" if lang == 'pt' else "Request timed out"
