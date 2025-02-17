@@ -2,7 +2,6 @@ import aiohttp
 import asyncio
 import logging
 from config import EDEN_AI_API_KEY
-from langdetect import detect
 
 logger = logging.getLogger(__name__)
 
@@ -15,36 +14,18 @@ class EdenAIClient:
             "Content-Type": "application/json"
         }
 
-    async def get_response(self, message: str, context: dict = None) -> str:
+    async def get_response(self, message: str) -> str:
         """
         Get AI response using Eden AI's Text Generation API
         """
         try:
-            # Default to Portuguese and attempt to detect language
-            lang = 'pt'
-            try:
-                lang = detect(message)
-                logger.info(f"Detected language: {lang}")
-            except:
-                logger.warning("Language detection failed, defaulting to Portuguese")
-
             endpoint = f"{self.base_url}/text/generation"
-
-            # Simple system prompt focused on task
-            system_prompt = "Responda em português de forma natural" if lang == 'pt' else "Respond naturally in English"
-
-            if context:
-                context_msg = "Contexto: " if lang == 'pt' else "Context: "
-                system_prompt = f"{system_prompt}\n{context_msg}{str(context)}"
-
-            prompt = system_prompt + "\nUser: " + message
 
             payload = {
                 "providers": "openai",
-                "text": prompt,
-                "temperature": 0.7,
-                "max_tokens": 1000,
-                "language": lang
+                "text": message,
+                "temperature": 0.3,
+                "max_tokens": 150
             }
 
             async with aiohttp.ClientSession() as session:
@@ -60,38 +41,26 @@ class EdenAIClient:
                     if result.get("openai") and result["openai"].get("generated_text"):
                         return result["openai"]["generated_text"].strip()
 
-                    error_msg = "Sem resposta válida dos provedores" if lang == 'pt' else "No valid response from providers"
-                    raise Exception(error_msg)
+                    raise Exception("No valid response from providers")
 
         except asyncio.TimeoutError:
-            error_msg = "Tempo limite excedido" if lang == 'pt' else "Request timed out"
             logger.error("Request to Eden AI timed out")
-            raise TimeoutError(error_msg)
+            raise TimeoutError("Timeout error")
 
         except Exception as e:
-            error_msg = "Erro ao processar requisição" if lang == 'pt' else "Error processing request"
             logger.error(f"Error calling Eden AI: {str(e)}")
-            raise Exception(f"{error_msg}: {str(e)}")
+            raise Exception(f"Error: {str(e)}")
 
     async def analyze_sentiment(self, text: str) -> dict:
         """
         Analyze sentiment of a text using Eden AI
         """
         try:
-            # Default to Portuguese and attempt to detect language
-            lang = 'pt'
-            try:
-                lang = detect(text)
-                logger.info(f"Detected language for sentiment analysis: {lang}")
-            except:
-                logger.warning("Language detection failed, defaulting to Portuguese")
-
             endpoint = f"{self.base_url}/text/sentiment_analysis"
 
             payload = {
                 "providers": "amazon,google",
-                "text": text,
-                "language": lang
+                "text": text
             }
 
             async with aiohttp.ClientSession() as session:
@@ -109,6 +78,5 @@ class EdenAIClient:
                     }
 
         except Exception as e:
-            error_msg = "Erro na análise de sentimento" if lang == 'pt' else "Error in sentiment analysis"
             logger.error(f"Error in sentiment analysis: {str(e)}")
-            raise Exception(f"{error_msg}: {str(e)}")
+            raise Exception(f"Error in sentiment analysis: {str(e)}")

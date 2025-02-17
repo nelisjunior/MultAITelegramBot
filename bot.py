@@ -267,29 +267,12 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
                 await update.message.reply_text("Erro ao analisar sentimento. Tente novamente.")
                 return
 
-        # Get current Notion context for the user
-        if user_id not in notion_context:
-            try:
-                databases = await notion_client.list_databases()
-                notion_context[user_id] = {
-                    "databases": databases
-                }
-            except Exception as e:
-                logger.warning(f"Could not fetch Notion context: {str(e)}")
-                notion_context[user_id] = {}
-
         # Get AI response based on selected provider
         provider = ai_manager.get_active_provider(user_id)
         if provider == AIProvider.DEEPSEEK:
-            response = await deepseek_client.get_response(
-                message_text,
-                context=notion_context.get(user_id, {})
-            )
+            response = await deepseek_client.get_response(message_text)
         else:  # AIProvider.EDEN
-            response = await eden_client.get_response(
-                message_text,
-                context=notion_context.get(user_id, {})
-            )
+            response = await eden_client.get_response(message_text)
 
         await update.message.reply_text(response)
 
