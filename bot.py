@@ -65,22 +65,39 @@ async def analyze_sentiment(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("📊 Envie uma mensagem para análise de sentimento.")
 
 async def list_databases(update: Update, context: CallbackContext) -> None:
-    """List all accessible Notion databases."""
+    """Lista todos os bancos de dados acessíveis do Notion."""
     try:
         databases = await notion_client.list_databases()
         if not databases:
-            await update.message.reply_text("No databases found in your Notion workspace.")
+            await update.message.reply_text(
+                "📚 Nenhum banco de dados encontrado no seu workspace Notion.\n"
+                "Verifique se você tem permissão de acesso aos bancos de dados."
+            )
             return
 
-        response = "📚 Available Notion Databases:\n\n"
+        response = "📚 Bancos de dados disponíveis no Notion:\n\n"
         for db in databases:
             response += f"📁 {db['title']}\n"
-            response += f"ID: {db['id']}\n\n"
+            response += f"ID: `{db['id']}`\n"
+            if db.get('description'):
+                response += f"📝 {db['description']}\n"
+            response += "\n"
 
         await update.message.reply_text(response)
     except Exception as e:
-        logger.error(f"Error listing databases: {str(e)}")
-        await update.message.reply_text(ERROR_MESSAGE)
+        error_msg = str(e)
+        logger.error(f"Erro ao listar bancos de dados: {error_msg}")
+
+        if "Token" in error_msg:
+            await update.message.reply_text(
+                "❌ Erro de autenticação no Notion.\n"
+                "Por favor, verifique se o token de integração está correto."
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Erro ao listar bancos de dados do Notion.\n"
+                "Por favor, tente novamente mais tarde."
+            )
 
 async def use_dummy_mode(update: Update, context: CallbackContext) -> None:
     """Enable dummy mode."""
@@ -94,11 +111,111 @@ async def use_dummy_mode(update: Update, context: CallbackContext) -> None:
         f"Provedores de IA disponíveis:\n{providers_text}"
     )
 
+async def save_to_notion(update: Update, context: CallbackContext) -> None:
+    """Salva a próxima mensagem no Notion."""
+    if not context.args:
+        await update.message.reply_text(
+            "ℹ️ Por favor, forneça um título para a página.\n"
+            "Exemplo: /save Minha Nota"
+        )
+        return
+
+    user_id = update.effective_user.id
+    title = " ".join(context.args)
+
+    # Aguardando próxima mensagem
+    context.user_data["waiting_for_notion_content"] = {
+        "title": title,
+        "command": "save"
+    }
+
+    await update.message.reply_text(
+        f"📝 Título definido: '{title}'\n"
+        "Agora envie o conteúdo que deseja salvar no Notion.\n"
+        "Obs: O conteúdo será limitado a 2000 caracteres."
+    )
+
+async def search_notion(update: Update, context: CallbackContext) -> None:
+    """Search in Notion."""
+    if not context.args:
+        await update.message.reply_text(
+            "ℹ️ Por favor, forneça um termo para busca.\n"
+            "Exemplo: /search reunião"
+        )
+        return
+
+    query = " ".join(context.args)
+    try:
+        results = await notion_client.search_pages(query)
+        if not results:
+            await update.message.reply_text("🔍 Nenhum resultado encontrado.")
+            return
+
+        response = "🔍 Resultados encontrados:\n\n"
+        for page in results:
+            response += f"📄 {page['title']}\n"
+            response += f"🔗 {page['url']}\n"
+            response += f"⏱️ Última edição: {page['last_edited']}\n\n"
+
+        await update.message.reply_text(response)
+    except Exception as e:
+        logger.error(f"Error searching Notion: {str(e)}")
+        await update.message.reply_text(
+            "❌ Erro ao buscar no Notion.\n"
+            "Por favor, tente novamente mais tarde."
+        )
+
 async def handle_message(update: Update, context: CallbackContext) -> None:
-    """Handle all incoming messages with AI assistance."""
+    """Processa todas as mensagens recebidas."""
     try:
         user_id = update.effective_user.id
         message_text = update.message.text
+
+        # Verificar se estamos esperando conteúdo para o Notion
+        if context.user_data.get("waiting_for_notion_content"):
+            notion_data = context.user_data["waiting_for_notion_content"]
+
+            if notion_data["command"] == "save":
+                try:
+                    result = await notion_client.create_page(
+                        title=notion_data["title"],
+                        content=message_text
+                    )
+
+                    # Se o conteúdo foi truncado, avisar o usuário
+                    truncated_warning = ""
+                    if len(message_text) > 2000:
+                        truncated_warning = "\n⚠️ O conteúdo foi limitado a 2000 caracteres."
+
+                    await update.message.reply_text(
+                        "✅ Conteúdo salvo com sucesso no Notion!" +
+                        truncated_warning + "\n\n"
+                        f"📄 Título: {result['title']}\n"
+                        f"🔗 Link: {result['url']}"
+                    )
+                except Exception as e:
+                    error_msg = str(e)
+                    logger.error(f"Erro ao salvar no Notion: {error_msg}")
+
+                    if "Token" in error_msg:
+                        await update.message.reply_text(
+                            "❌ Erro de autenticação no Notion.\n"
+                            "Por favor, verifique se o token de integração está correto."
+                        )
+                    elif "database" in error_msg.lower():
+                        await update.message.reply_text(
+                            "❌ Erro ao acessar o banco de dados do Notion.\n"
+                            "Verifique se o ID do banco está correto e se você tem permissão de acesso."
+                        )
+                    else:
+                        await update.message.reply_text(
+                            "❌ Erro ao salvar no Notion.\n"
+                            "Por favor, verifique se o conteúdo é válido e tente novamente."
+                        )
+
+                # Limpar o estado de espera
+                del context.user_data["waiting_for_notion_content"]
+                return
 
         # Verifica se está em modo dummy
         if ai_manager.is_dummy_mode(user_id):
@@ -189,6 +306,8 @@ def main() -> None:
         application.add_handler(CommandHandler("use_eden", use_eden))
         application.add_handler(CommandHandler("use_dummy", use_dummy_mode))
         application.add_handler(CommandHandler("analyze_sentiment", analyze_sentiment))
+        application.add_handler(CommandHandler("save", save_to_notion))
+        application.add_handler(CommandHandler("search", search_notion))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
         # Start the Bot
